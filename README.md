@@ -6,7 +6,7 @@
 
 基于 WebSocket 协议逆向的豆包文本转语音 Python 客户端，支持多种语音角色、语速和音调调节，提供命令行、Python API 和 WebUI 三种使用方式。   
 
-修改自[callmerio/doubao-tts](https://github.com/callmerio/doubao-tts)
+修改自  [callmerio/doubao-tts](https://github.com/callmerio/doubao-tts)
 
 <div align="center">
 
@@ -78,7 +78,7 @@ sessionid=你的sessionid; sid_guard=你的sid_guard; uid_tt=你的uid_tt
 python webui.py
 ```
 
-打开浏览器访问 `http://127.0.0.1:7860`，点击「登录/重新登录」按钮自动获取 Cookie，选择语音角色和参数，输入文本即可合成语音。
+运行后会自动打开浏览器访问 `http://127.0.0.1:7860`，点击「登录/重新登录」按钮自动获取 Cookie，选择语音角色和参数，输入文本即可合成语音。
 
 ## 命令行
 
@@ -115,7 +115,7 @@ if result.success:
 
 # 可用语音角色
 
-| 简称 | 完整 ID | 描述 |
+| 简称 | ID | 描述 |
 |------|---------|------|
 | taozi | zh_female_taozi_conversation_v4_wvae_bigtts | 桃子 - 女声对话 |
 | shuangkuai | zh_female_shuangkuai_emo_v3_wvae_bigtts | 爽快 - 女声 |
@@ -131,12 +131,14 @@ if result.success:
 
 如果在使用过程中遇到任何问题，请通过以下方式反馈：
 
-- [GitHub Issues](https://github.com/VanillaNahida/doubao-tts-webui/issues)
+ - [GitHub Issues](https://github.com/VanillaNahida/doubao-tts-webui/issues)
+ - QQ群：
+   - [195260107](https://qm.qq.com/q/sUmbgXcUTY) （推荐）
+   - [1074471035](https://qm.qq.com/q/eGYIxyLRtu) （闲聊群）
 
 # 致谢
 
-- 参考了豆包 WebSocket 接口的逆向分析思路。
-- 感谢所有贡献者和用户的反馈支持。
+ - 参考了 [callmerio/doubao-tts](https://github.com/callmerio/doubao-tts)  的豆包 WebSocket 接口的逆向分析思路。
 
 # Star History
 

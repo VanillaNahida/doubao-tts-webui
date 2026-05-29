@@ -25,8 +25,8 @@ SPEAKER_CHOICES = [
         "yangguang": ("zh_male_yangguang_conversation_v4_wvae_bigtts", "阳光 男声"),
         "chenwen": ("zh_male_chenwen_moon_bigtts", "沉稳 男声"),
         "rap": ("zh_male_rap_mars_bigtts", "说唱 男声"),
-        "en_female": ("en_female_sarah_conversation_bigtts", "英文女声"),
-        "en_male": ("en_male_adam_conversation_bigtts", "英文男声"),
+        "en_female": ("en_female_sarah_conversation_bigtts", "英文 女声"),
+        "en_male": ("en_male_adam_conversation_bigtts", "英文 男声"),
     }.items()
 ]
 
@@ -38,9 +38,11 @@ OUTPUT_DIR = Path(__file__).parent / "tts_output"
 
 async def synthesize_audio(text, speaker, speed, pitch, fmt, cookie, auto_save, progress=gr.Progress()):
     if not text.strip():
+        gr.Warning("请输入要合成的文本")
         return None, "请输入要合成的文本"
 
     if not cookie.strip():
+        gr.Warning("请先配置 Cookie")
         return None, "请先配置 Cookie（从浏览器登录豆包后获取）"
 
     config = TTSConfig(format=fmt, cookie=cookie.strip())
@@ -76,15 +78,20 @@ async def synthesize_audio(text, speaker, speed, pitch, fmt, cookie, auto_save, 
         )
         if auto_save:
             status += f"\n已保存: tts_output/tts_{timestamp}{suffix}"
+
+        gr.Info("合成成功")
         return tmp_path, status
 
+    gr.Error(f"合成失败: {result.error}")
     return None, f"合成失败: {result.error}"
 
 
 def save_cookie(cookie):
     if not cookie.strip():
+        gr.Warning("Cookie 不能为空")
         return "Cookie 不能为空"
     save_cookie_to_file(cookie.strip())
+    gr.Info("Cookie 已保存")
     return "Cookie 已保存"
 
 
@@ -102,13 +109,51 @@ def toggle_cookie_visibility(visibility_state):
     return gr.update(type=new_type), button_text, new_state
 
 
-def relogin():
+def relogin(process, orig_mtime, countdown):
     login_script = Path(__file__).parent / "login.py"
     if not login_script.exists():
-        return "未找到 login.py，请确认文件存在"
+        gr.Error("未找到 login.py")
+        return "未找到 login.py，请确认文件存在", process, orig_mtime, 0
+    if process is not None and process.poll() is None:
+        gr.Warning("登录浏览器已打开，请勿重复点击")
+        return "登录浏览器已打开，请勿重复点击", process, orig_mtime, 0
+
+    cookie_file = Path(__file__).parent / ".cookie"
+    try:
+        orig_mtime = cookie_file.stat().st_mtime
+    except (FileNotFoundError, OSError):
+        orig_mtime = 0.0
+
     python = sys.executable
-    subprocess.Popen([python, str(login_script)], shell=True)
-    return "已打开登录浏览器，请在浏览器窗口中登录"
+    process = subprocess.Popen([python, str(login_script)], shell=True)
+    gr.Info("已打开登录浏览器，请在浏览器窗口中完成登录")
+    return "已打开登录浏览器，请在浏览器窗口中完成登录", process, orig_mtime, 0
+
+
+def check_login_status(process, orig_mtime, countdown):
+    if process is None:
+        if countdown > 0:
+            countdown -= 1
+            if countdown == 0:
+                return "使用当前 Cookie", None, 0.0, 0
+            return f"登录失败，请稍后再试（{countdown}s）", None, 0.0, countdown
+        return gr.skip()
+
+    retcode = process.poll()
+    if retcode is None:
+        return "已打开登录浏览器，请在浏览器窗口中完成登录", process, orig_mtime, 0
+
+    cookie_file = Path(__file__).parent / ".cookie"
+    try:
+        mtime = cookie_file.stat().st_mtime
+        if mtime > orig_mtime and cookie_file.stat().st_size > 0:
+            gr.Info("登录成功")
+            return "登录成功", None, 0.0, 0
+    except (FileNotFoundError, OSError):
+        pass
+
+    gr.Error("登录失败，请稍后再试")
+    return "登录失败，请稍后再试（3s）", None, 0.0, 3
 
 
 FONT_CSS = (
@@ -116,6 +161,7 @@ FONT_CSS = (
     '<link rel="stylesheet" href="//cdn.jsdelivr.net/gh/VanillaNahida/BA-Spark-Cursor/fonts/Blueaka_Bold/Blueaka_Bold.css">\n'
     "<style>"
     "* { font-family: 'Blueaka', 'Blueaka_Bold', sans-serif !important; }"
+    ".text-input-area textarea { overflow-y: auto !important; resize: vertical !important; }"
     "</style>"
 )
 
@@ -160,17 +206,24 @@ def load_config():
     )
 
 
+def welcome_toast():
+    gr.Info(
+        "欢迎使用豆包 TTS WebUI！如果该项目对你有帮助，可以点个star支持一下！感谢你的支持！"
+    )
+
+
 def create_ui():
     with gr.Blocks(title="豆包 TTS WebUI", head=FONT_CSS) as ui:
         gr.Markdown(
             """
             # 豆包 TTS WebUI
+            作者：callmerio & VanillaNahida   
             基于豆包 WebSocket 接口的文本转语音工具   
             原作者：https://github.com/callmerio/doubao-tts   
             开源地址：https://github.com/VanillaNahida/doubao-tts-webui
+            B站主页：https://space.bilibili.com/1347891621
             """
         )
-
         with gr.Row():
             with gr.Column(scale=1):
                 gr.Markdown("### 配置")
@@ -188,6 +241,9 @@ def create_ui():
                 with gr.Row():
                     relogin_btn = gr.Button("登录/重新登录", size="sm", variant="primary")
                 cookie_status = gr.Textbox(label="Cookie 状态", interactive=False)
+                login_process = gr.State(None)
+                login_cookie_mtime = gr.State(0.0)
+                login_fail_countdown = gr.State(0)
 
                 speaker_input = gr.Dropdown(
                     choices=SPEAKER_CHOICES,
@@ -229,14 +285,15 @@ def create_ui():
             with gr.Column(scale=2):
                 gr.Markdown("### 文本输入")
                 text_input = gr.Textbox(
-                    label="",
+                    label="文本输入",
                     placeholder="请输入要转换为语音的文本...",
                     lines=8,
+                    elem_classes="text-input-area",
                 )
 
                 synthesize_btn = gr.Button("合成语音", size="lg", variant="primary")
 
-                status_output = gr.Textbox(label="状态", interactive=False)
+                status_output = gr.Textbox(label="执行状态", interactive=False)
 
                 audio_output = gr.Audio(
                     label="合成结果",
@@ -248,7 +305,7 @@ def create_ui():
             """
             ---
             ### 使用说明
-            1. 点击"重新登录"按钮，程序会自动打开浏览器
+            1. 点击"登录/重新登录"按钮，程序会自动打开浏览器
             2. 在浏览器中登录豆包账号，登录成功后自动保存 Cookie 并关闭
             3. 回到本页面点击"加载 Cookie"按钮加载已保存的 Cookie
             4. 选择语音角色，调整语速和音调
@@ -276,7 +333,15 @@ def create_ui():
 
         relogin_btn.click(
             fn=relogin,
-            outputs=[cookie_status],
+            inputs=[login_process, login_cookie_mtime, login_fail_countdown],
+            outputs=[cookie_status, login_process, login_cookie_mtime, login_fail_countdown],
+        )
+
+        login_timer = gr.Timer(value=1)
+        login_timer.tick(
+            fn=check_login_status,
+            inputs=[login_process, login_cookie_mtime, login_fail_countdown],
+            outputs=[cookie_status, login_process, login_cookie_mtime, login_fail_countdown],
         )
 
         speaker_input.change(
@@ -320,6 +385,8 @@ def create_ui():
         ).then(
             fn=load_cookie,
             outputs=[cookie_input, cookie_status],
+        ).then(
+            fn=welcome_toast,
         )
 
     return ui
