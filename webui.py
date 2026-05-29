@@ -220,7 +220,7 @@ def create_ui():
             作者：callmerio & VanillaNahida   
             基于豆包 WebSocket 接口的文本转语音工具   
             原作者：https://github.com/callmerio/doubao-tts   
-            开源地址：https://github.com/VanillaNahida/doubao-tts-webui
+            开源地址：https://github.com/VanillaNahida/doubao-tts-webui  
             B站主页：https://space.bilibili.com/1347891621
             """
         )
