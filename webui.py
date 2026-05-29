@@ -293,7 +293,7 @@ def create_ui():
 
                 synthesize_btn = gr.Button("合成语音", size="lg", variant="primary")
 
-                status_output = gr.Textbox(label="执行状态", interactive=False)
+                status_output = gr.Textbox(label="执行状态", value="已准备就绪。", interactive=False)
 
                 audio_output = gr.Audio(
                     label="合成结果",

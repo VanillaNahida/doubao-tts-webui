@@ -19,3 +19,6 @@ tts_output/
 .idea/
 .vscode/
 *.swp
+
+# scripts
+*.bat
